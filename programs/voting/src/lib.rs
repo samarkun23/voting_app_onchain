@@ -14,6 +14,30 @@ pub mod voting {
         pool.poll_voting_end = end;
         Ok(())
     }
+
+    pub fn initialize_candidate(ctx: Context<InitCandidate>, _poll_id: u64, name: String) -> Result<()> {
+        ctx.accounts.candidate_account.candidate_name = name;
+        ctx.accounts.poll_account.poll_options_index += 1;
+        Ok(())
+    }
+
+    pub fn vote(ctx: Context<Vote>, _poll_id: u64, _candidate: String) -> Result<()>{
+        let candidate = &mut ctx.accounts.candidate_account;
+
+        let current_time = Clock::get()?.unix_timestamp;  // this is u64 type that we save the start and end time u64
+
+        if current_time > (ctx.accounts.poll_account.poll_voting_end as i64) {
+            return Err(ErrorCode::VotingEnded.into());
+        }
+
+        if current_time <= (ctx.accounts.poll_account.poll_voting_end as i64) {
+            return Err(ErrorCode::VotingNotStarted.into());
+        }
+
+        candidate.candidate_votes += 1;
+
+        Ok(())
+    }
 }
 
 // initialize candidate account
@@ -43,6 +67,28 @@ pub struct InitCandidate<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(poll_id: u64, candidate: String)]
+pub struct Vote<'info> {
+    #[account(mut)]
+    pub singer: Signer<'info>,
+    
+    #[account(
+        mut,
+        seeds = [b"pool".as_ref(), poll_id.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub poll_account: Account<'info, PollAccount>,
+
+    #[account(
+        mut,
+        seeds = [b"candidate".as_ref(), candidate.as_ref()],
+        bump
+    )]
+    pub candidate_account: Account<'info, CandidateAccount>,
+}
+
+
+#[derive(Accounts)]
 #[instruction(poll_id: u64)]
 pub struct InitPoll<'info> {
     #[account(mut)]
@@ -59,7 +105,6 @@ pub struct InitPoll<'info> {
 
     pub system_program: Program<'info, System>
 }
-
 
 #[account]
 #[derive(InitSpace)]
@@ -79,4 +124,12 @@ pub struct CandidateAccount {
     #[max_len(32)]
     pub candidate_name : String,
     pub candidate_votes: u64,
+}
+
+#[error_code]
+pub enum ErrorCode{
+    #[msg("Voting has not started yet")]
+    VotingNotStarted,
+    #[msg("Voting has ended")]
+    VotingEnded
 }

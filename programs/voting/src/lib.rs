@@ -7,13 +7,39 @@ pub mod voting {
     use super::*;
 
     pub fn init_poll(ctx: Context<InitPoll>, _poll_id: u64, start: u64, end: u64, name: String, description: String) -> Result<()> {
-        let mut pool = &mut ctx.accounts.poll_account;
+        let pool = &mut ctx.accounts.poll_account;
         pool.poll_name = name;
         pool.poll_description = description;
         pool.poll_voting_start = start;
         pool.poll_voting_end = end;
         Ok(())
     }
+}
+
+// initialize candidate account
+#[derive(Accounts)]
+#[instruction(poll_id: u64, candidate: String)]
+pub struct InitCandidate<'info> {
+    #[account(mut)]
+    pub singer: Signer<'info>,
+    
+    #[account(
+        mut,
+        seeds = [b"pool".as_ref(), poll_id.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub poll_account: Account<'info, PollAccount>,
+
+    #[account(
+        init,
+        payer = singer,
+        space = 8 + CandidateAccount::INIT_SPACE,
+        seeds = [b"candidate".as_ref(), candidate.as_ref()],
+        bump
+    )]
+    pub candidate_account: Account<'info, CandidateAccount>,
+
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]

@@ -1,0 +1,6 @@
+{
+  "name": "Voting",
+  "logo": "https://i.postimg.cc/BZDSDsPv/nagumo.jpg",
+  "description": "A decentralized voting program built with Solana and Anchor.",
+  "version": "0.1.0"
+}
